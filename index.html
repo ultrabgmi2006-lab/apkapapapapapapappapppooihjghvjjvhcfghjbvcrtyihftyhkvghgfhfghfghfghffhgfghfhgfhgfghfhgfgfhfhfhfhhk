@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YT Live — Word Race + Glow Profile (Final)</title>
+<style>
+  :root{
+    --gap:12px;
+    --bg1:#071127;
+    --bg2:#031025;
+    --card:#0b1220;
+    --muted:#94a3b8;
+    --accent:#ef4444;
+    --text:#e6eef6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Roboto,Segoe UI,Arial;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--text);min-height:100vh}
+  .container{padding:14px;display:grid;grid-template-columns:420px 1fr;gap:14px;min-height:calc(100vh - 28px)}
+  @media(max-width:980px){ .container{grid-template-columns:1fr;grid-auto-rows:auto} }
+
+  .panel{background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;box-shadow:0 8px 28px rgba(2,6,23,0.6);overflow:hidden}
+  h2{margin:0 0 8px 0}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input,select,button,textarea{font-family:inherit}
+  input[type="text"], input[type="url"], input[type="number"], select, textarea{
+    width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;
+  }
+  .row{display:flex;gap:8px;align-items:center}
+  .btn{padding:10px 12px;border-radius:8px;border:none;background:var(--accent);color:white;cursor:pointer;font-weight:600}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.08)}
+  .small{font-size:12px;color:var(--muted)}
+  .leaderboard{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto}
+  .lb-item{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);cursor:pointer}
+  .avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:white;background:linear-gradient(90deg,#334155,#0ea5a4)}
+  .main{display:flex;flex-direction:column;gap:12px}
+  .boxes{display:flex;gap:12px}
+  @media(max-width:980px){ .boxes{flex-direction:column} }
+  .box{flex:1;background:var(--card);padding:12px;border-radius:10px;min-height:120px;resize:vertical;overflow:auto}
+  .chat-list{max-height:56vh;overflow:auto}
+  .chat-msg{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px;word-break:break-word}
+  .chat-msg .who{font-weight:700}
+  .chat-msg .text{color:#dbeafe}
+  .badge{background:rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px;font-weight:700}
+  footer{margin-top:8px;color:var(--muted);font-size:13px}
+  .error{color:#ffb4b4;background:rgba(255,180,180,0.04);padding:8px;border-radius:8px;margin-top:8px}
+
+  /* ---------- Glow Profile Card styles ---------- */
+  .glow-profile{
+    width:100%;
+    max-width:360px;
+    margin:0 auto 12px auto;
+    padding:14px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:14px;
+    text-align:center;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+  }
+  .glow-photo-wrapper{
+    width:150px;height:150px;margin:0 auto;border-radius:50%;padding:6px;
+    background:linear-gradient(135deg,#ff0080,#7f00ff,#00eaff);
+    animation: rotateGlow 6s linear infinite;
+    box-shadow: 0 0 28px #7f00ff66, 0 0 48px #ff008088;
+  }
+  @keyframes rotateGlow{0%{filter:hue-rotate(0deg);}100%{filter:hue-rotate(360deg);}}
+  .glow-photo-wrapper img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:4px solid var(--card)}
+  .glow-profile input[type="file"]{width:100%;margin-top:12px;padding:8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)}
+  #glowCaption{width:100%;margin-top:12px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:inherit;text-align:center}
+  .profile-actions{display:flex;gap:8px;margin-top:10px;justify-content:center}
+  .tiny{font-size:12px;color:var(--muted)}
+
+  /* API key box with eye */
+  .apiKeyBox{position:relative;width:100%}
+  .apiKeyBox input{padding-right:44px}
+  .apiKeyBox .eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;opacity:0.7}
+  .apiKeyBox .eye:hover{opacity:1}
+  .stat-grid{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .stat-item{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;min-width:120px;text-align:center}
+  @media(max-width:480px){
+    .glow-photo-wrapper{width:120px;height:120px}
+    .avatar{width:36px;height:36px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- LEFT PANEL (controls + glow profile at top) -->
+  <div class="panel" id="leftPanel">
+    <!-- Glow profile (placed at top) -->
+    <div class="glow-profile">
+      <div class="glow-photo-wrapper">
+        <img id="glowPhoto" src="" alt="Profile">
+      </div>
+      <input id="glowPhotoInput" type="file" accept="image/*" />
+      <input id="glowCaption" type="text" placeholder="Write anything here (channel name, tagline, etc.)" />
+      <div class="profile-actions">
+        <button id="saveProfileBtn" class="btn secondary">Save</button>
+        <button id="resetProfileBtn" class="btn secondary">Reset</button>
+      </div>
+      <div class="tiny">Glow profile is local-only (stored in your browser).</div>
+    </div>
+
+    <h2>YT Live — Auto Connect (Word Race)</h2>
+
+    <label>API Key (YouTube Data API v3)</label>
+    <div class="apiKeyBox">
+      <input id="apiKey" type="password" placeholder="Paste API key here" />
+      <span id="toggleKey" class="eye" title="Show / hide key">👁️</span>
+    </div>
+
+    <label style="margin-top:10px">YouTube Live Link</label>
+    <div class="row">
+      <input id="liveUrl" type="url" placeholder="https://www.youtube.com/watch?v=VIDEO_ID" />
+      <button id="connectBtn" class="btn secondary">Connect</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <div style="flex:1">
+        <label>Target word</label>
+        <input id="targetWord" type="text" value="REDEEM" />
+      </div>
+      <div style="width:110px">
+        <label>Time window (sec)</label>
+        <input id="timeWindow" type="number" min="1" max="60" value="5" />
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button id="startBtn" class="btn">Start Poll</button>
+      <button id="stopBtn" class="btn secondary">Stop</button>
+      <button id="clearBtn" class="btn secondary">Clear</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <label class="small"><input id="simulateToggle" type="checkbox" /> Simulate (no API)</label>
+      <label style="margin-left:auto" class="small"><input id="autoScroll" type="checkbox" checked /> Auto-scroll</label>
+    </div>
+
+    <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)">
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>Leaderboard</strong><div class="small">Top users by target word in window</div></div>
+      <div class="small">Top <select id="topN"><option>5</option><option selected>10</option></select></div>
+    </div>
+
+    <div id="leaderboard" class="leaderboard"></div>
+
+    <div id="status" class="small" style="margin-top:10px">Status: idle</div>
+    <div id="errorBox" style="display:none" class="error"></div>
+
+    <footer>
+      Tip: Restrict your API key in Google Cloud Console to YouTube Data API v3 or use a backend proxy for production.
+    </footer>
+  </div>
+
+  <!-- RIGHT MAIN AREA (chats + stats) -->
+  <div class="main panel">
+    <div class="boxes">
+      <div class="box" style="flex:0.95">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong id="selectedUserTitle">Selected user: (none)</strong>
+            <div class="small" id="selectedUserCount"></div>
+          </div>
+          <div class="badge" id="selectedUserBadge">0 msgs</div>
+        </div>
+        <div id="selectedUserChats" class="chat-list" style="margin-top:10px"></div>
+      </div>
+
+      <div class="box" style="flex:1.3">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>All Live Chats</strong><div class="small">Real-time messages</div></div>
+          <div class="small">Resize boxes by dragging</div>
+        </div>
+        <div id="allChats" class="chat-list" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="box" style="min-height:100px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Stats</strong>
+        <div class="small">Last update: <span id="lastUpdate">—</span></div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-item">Active users: <div id="userCount">0</div></div>
+        <div class="stat-item">Total msgs: <div id="msgCount">0</div></div>
+        <div class="stat-item">Live viewers: <div id="liveViewers">0</div></div>
+      </div>
+
+      <div style="margin-top:8px" class="small">Tip: If stream restarts you'll need to reconnect. For secure production hide your API key on server.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* FINAL merged script:
+   - Glow profile upload/save
+   - API key blur & toggle
+   - Connect by YouTube link -> get liveChatId & videoId
+   - Poll liveChat messages
+   - Update live viewers via videos.list
+   - Leaderboard by target word (rolling window)
+   - Simulate mode
+*/
+
+// ELEMENTS
+const apiKeyInput = document.getElementById('apiKey');
+const toggleKey = document.getElementById('toggleKey');
+const liveUrlInput = document.getElementById('liveUrl');
+const connectBtn = document.getElementById('connectBtn');
+const simulateToggle = document.getElementById('simulateToggle');
+const autoScroll = document.getElementById('autoScroll');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+const targetInput = document.getElementById('targetWord');
+const timeWindowInput = document.getElementById('timeWindow');
+const topNInput = document.getElementById('topN');
+
+const leaderboardEl = document.getElementById('leaderboard');
+const allChatsEl = document.getElementById('allChats');
+const selectedUserChatsEl = document.getElementById('selectedUserChats');
+const selectedUserTitle = document.getElementById('selectedUserTitle');
+const selectedUserBadge = document.getElementById('selectedUserBadge');
+const selectedUserCount = document.getElementById('selectedUserCount');
+
+const statusEl = document.getElementById('status');
+const errorBox = document.getElementById('errorBox');
+
+const lastUpdateEl = document.getElementById('lastUpdate');
+const userCountEl = document.getElementById('userCount');
+const msgCountEl = document.getElementById('msgCount');
+const liveViewersEl = document.getElementById('liveViewers');
+
+const glowPhotoInput = document.getElementById('glowPhotoInput');
+const glowPhoto = document.getElementById('glowPhoto');
+const glowCaption = document.getElementById('glowCaption');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+const resetProfileBtn = document.getElementById('resetProfileBtn');
+
+// STATE
+let running = false;
+let pollTimer = null;
+let liveChatId = null;
+let nextPageToken = null;
+let currentVideoId = null;
+
+let storeMessages = [];
+let counts = new Map();
+let totalMsgCount = 0;
+let selectedUser = null;
+
+// UTILITIES
+function setStatus(s){ statusEl.textContent = 'Status: ' + s; }
+function showError(s){ errorBox.style.display='block'; errorBox.textContent = s; }
+function clearError(){ errorBox.style.display='none'; errorBox.textContent=''; }
+function escapeHtml(s){ return (s+'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function tNow(){ return new Date().toLocaleTimeString(); }
+
+// ---------- Glow profile: load/save (localStorage) ----------
+function loadProfile(){
+  try{
+    const p = localStorage.getItem('glowProfile');
+    if(p){
+      const obj = JSON.parse(p);
+      if(obj.caption) glowCaption.value = obj.caption;
+      if(obj.photoDataUrl) glowPhoto.src = obj.photoDataUrl;
+    } else {
+      // placeholder SVG
+      glowPhoto.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect fill="#0b1220" width="100%" height="100%"/><text x="50%" y="50%" fill="#7f8fa6" font-size="28" text-anchor="middle" dominant-baseline="middle">Upload Photo</text></svg>`);
+    }
+  }catch(e){ console.warn(e); }
+}
+glowPhotoInput.addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ glowPhoto.src = reader.result; };
+  reader.readAsDataURL(file);
+});
+saveProfileBtn.onclick = ()=>{
+  const obj = { caption: glowCaption.value || '', photoDataUrl: glowPhoto.src || '' };
+  localStorage.setItem('glowProfile', JSON.stringify(obj));
+  setStatus('Profile saved locally');
+};
+resetProfileBtn.onclick = ()=>{
+  localStorage.removeItem('glowProfile');
+  loadProfile();
+  setStatus('Profile reset');
+};
+loadProfile();
+
+// ---------- API key show/hide ----------
+toggleKey.addEventListener('click', ()=>{
+  if(apiKeyInput.type === 'password'){ apiKeyInput.type = 'text'; toggleKey.textContent = '🙈'; }
+  else { apiKeyInput.type = 'password'; toggleKey.textContent = '👁️'; }
+});
+
+// ---------- YouTube helpers ----------
+function extractVideoId(url){
+  try{
+    const u = url.trim();
+    if(!u) return null;
+    let m = u.match(/[?&]v=([^&]+)/);
+    if(m) return m[1];
+    m = u.match(/youtu\.be\/([^?&]+)/);
+    if(m) return m[1];
+    m = u.match(/\/embed\/([^?&]+)/);
+    if(m) return m[1];
+    return null;
+  }catch(e){ return null; }
+}
+
+// Connect by link: fetch liveChatId and initial live viewers
+async function connectByLink(){
+  clearError();
+  const apiKey = apiKeyInput.value.trim();
+  if(simulateToggle.checked){
+    setStatus('Simulate mode — no connect needed');
+    return;
+  }
+  if(!apiKey){ showError('Please provide an API key.'); return; }
+  const url = liveUrlInput.value.trim();
+  const vid = extractVideoId(url);
+  if(!vid){ showError('Invalid YouTube URL.'); return; }
+  setStatus('Fetching liveChatId for video ' + vid + ' ...');
+  try{
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${encodeURIComponent(vid)}&key=${encodeURIComponent(apiKey)}`);
+    if(!res.ok){ const t = await res.text(); showError('YouTube API error: ' + res.status + ' - ' + t); setStatus('error'); return; }
+    const data = await res.json();
+    const item = data.items && data.items[0];
+    const liveDetails = item?.liveStreamingDetails || null;
+    const liveChat = liveDetails?.activeLiveChatId || liveDetails?.liveChatId || null;
+    const viewers = liveDetails?.concurrentViewers || 0;
+    if(!liveChat){ showError('No active live chat found. Stream might be offline or not live.'); setStatus('idle'); return; }
+    liveChatId = liveChat;
+    currentVideoId = vid;
+    nextPageToken = null;
+    liveViewersEl.textContent = viewers;
+    setStatus('Connected (liveChatId: ' + liveChatId.slice(0,10) + '...)');
+  }catch(err){ showError('Failed to fetch liveChatId: ' + err.message); setStatus('error'); }
+}
+connectBtn.onclick = async () => { clearError(); await connectByLink(); };
+
+// ---------- Push message UI & state ----------
+function pushMessage(author, text, timeMs){
+  const time = timeMs || Date.now();
+  const msg = { author, text, time };
+  storeMessages.push(msg);
+  totalMsgCount++; msgCountEl.textContent = totalMsgCount;
+
+  const el = document.createElement('div'); el.className = 'chat-msg';
+  el.innerHTML = `<div class="avatar">${escapeHtml((author[0]||'?').toUpperCase())}</div>
+    <div style="flex:1"><div class="who">${escapeHtml(author)} <span class="small">· ${new Date(time).toLocaleTimeString()}</span></div>
+    <div class="text">${escapeHtml(text)}</div></div>`;
+  allChatsEl.appendChild(el);
+  if(autoScroll.checked) allChatsEl.scrollTop = allChatsEl.scrollHeight;
+
+  // check target
+  const target = (targetInput.value || '').trim().toLowerCase();
+  if(target && text.toLowerCase().includes(target)){
+    if(!counts.has(author)) counts.set(author, []);
+    counts.get(author).push(time);
+  }
+}
+
+// prune counts older than window
+function pruneCounts(winMs){
+  const now = Date.now();
+  for(const [a, arr] of counts.entries()){
+    const filtered = arr.filter(ts => now - ts <= winMs);
+    if(filtered.length) counts.set(a, filtered);
+    else counts.delete(a);
+  }
+}
+
+// rebuild leaderboard
+function rebuildLeaderboard(){
+  const winMs = (Number(timeWindowInput.value) || 5) * 1000;
+  pruneCounts(winMs);
+  const arr = Array.from(counts.entries()).map(([author, arr]) => ({ author, count: arr.length }));
+  arr.sort((a,b) => b.count - a.count);
+  const topN = Number(topNInput.value) || 10;
+  leaderboardEl.innerHTML = '';
+  arr.slice(0, topN).forEach((it, idx) => {
+    const div = document.createElement('div'); div.className = 'lb-item';
+    div.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><div class="avatar">${escapeHtml((it.author[0]||'?').toUpperCase())}</div>
+      <div><div style="font-weight:700">${escapeHtml(it.author)}</div><div class="small">#${idx+1}</div></div></div><div class="counts">${it.count}</div>`;
+    div.onclick = () => selectUser(it.author);
+    leaderboardEl.appendChild(div);
+  });
+  userCountEl.textContent = counts.size;
+  lastUpdateEl.textContent = tNow();
+}
+
+// select a user & show messages
+function selectUser(author){
+  selectedUser = author;
+  selectedUserTitle.textContent = 'Selected user: ' + author;
+  selectedUserBadge.textContent = (counts.get(author)?.length || 0) + ' msgs';
+  selectedUserChatsEl.innerHTML = '';
+  storeMessages.filter(m => m.author === author).forEach(m => {
+    const e = document.createElement('div'); e.className='chat-msg';
+    e.innerHTML = `<div class="avatar">${escapeHtml(m.author[0].toUpperCase())}</div>
+      <div><div class="who">${escapeHtml(m.author)} <span class="small">· ${new Date(m.time).toLocaleTimeString()}</span></div>
+      <div class="text">${escapeHtml(m.text)}</div></div>`;
+    selectedUserChatsEl.appendChild(e);
+  });
+  selectedUserCount.textContent = storeMessages.filter(m => m.author === author).length + ' total msgs';
+  selectedUserChatsEl.scrollTop = selectedUserChatsEl.scrollHeight;
+}
+
+// clear all state & UI
+function clearAll(){
+  storeMessages = []; counts.clear(); totalMsgCount = 0;
+  allChatsEl.innerHTML = ''; leaderboardEl.innerHTML = ''; selectedUserChatsEl.innerHTML = '';
+  selectedUser = null; selectedUserTitle.textContent = 'Selected user: (none)';
+  selectedUserBadge.textContent = '0 msgs'; userCountEl.textContent = '0'; msgCountEl.textContent = '0';
+  setStatus('idle'); clearError();
+}
+clearBtn.onclick = () => clearAll();
+
+// update live viewers using videos.list for currentVideoId
+async function updateLiveViewers(){
+  if(!currentVideoId) return;
+  const apiKey = apiKeyInput.value.trim();
+  if(!apiKey) return;
+  try{
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${encodeURIComponent(currentVideoId)}&key=${encodeURIComponent(apiKey)}`);
+    if(!res.ok) return;
+    const data = await res.json();
+    const details = data.items?.[0]?.liveStreamingDetails;
+    const viewers = details?.concurrentViewers || 0;
+    liveViewersEl.textContent = viewers;
+  }catch(e){ /* ignore silently */ }
+}
+
+// Poll live chat
+async function pollLiveChat(){
+  if(!running) return;
+  if(simulateToggle.checked){
+    const names = ["ArviisLive","UltraBhai","RiyaLive","GamerAnu","TechGuru","PrizeBot","Karan","Nisha","DevPandey"];
+    const texts = ["REDEEM","redeem pls","Where is code?","Nice stream","REDEEM","Thanks bro","Amazing!","giveaway","Ultra"];
+    const count = 1 + Math.floor(Math.random()*3);
+    for(let i=0;i<count;i++){
+      const u = names[Math.floor(Math.random()*names.length)];
+      const t = texts[Math.floor(Math.random()*texts.length)];
+      pushMessage(u, t);
+    }
+    rebuildLeaderboard();
+    setStatus('simulating');
+    // update fake viewers too:
+    liveViewersEl.textContent = 100 + Math.floor(Math.random()*900);
+    pollTimer = setTimeout(pollLiveChat, 1200 + Math.random()*800);
+    return;
+  }
+
+  if(!liveChatId){
+    showError('Not connected to a live chat. Press Connect with a valid live URL first.');
+    running = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    return;
+  }
+  const apiKey = apiKeyInput.value.trim();
+  if(!apiKey){ showError('API key missing.'); running = false; startBtn.disabled = false; stopBtn.disabled = true; return; }
+
+  try{
+    setStatus('polling live chat...');
+    let url = `https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet,authorDetails&liveChatId=${encodeURIComponent(liveChatId)}&maxResults=200&key=${encodeURIComponent(apiKey)}`;
+    if(nextPageToken) url += `&pageToken=${encodeURIComponent(nextPageToken)}`;
+    const resp = await fetch(url);
+    if(!resp.ok){
+      const t = await resp.text();
+      showError('YouTube API error: ' + resp.status + ' ' + resp.statusText + ' — ' + t);
+      running = false; startBtn.disabled = false; stopBtn.disabled = true; setStatus('error'); return;
+    }
+    const data = await resp.json();
+    nextPageToken = data.nextPageToken || null;
+    const items = data.items || [];
+    for(const it of items){
+      const author = it.authorDetails?.displayName || it.authorDetails?.channelId || 'Unknown';
+      const messageText = it.snippet?.displayMessage || it.snippet?.textMessageDetails?.messageText || '';
+      const publishedAt = new Date(it.snippet?.publishedAt || Date.now()).getTime();
+      pushMessage(author, messageText, publishedAt);
+    }
+    // rebuild leaderboard and update viewers
+    rebuildLeaderboard();
+    await updateLiveViewers();
+    setStatus('polling — messages fetched: ' + items.length);
+    lastUpdateEl.textContent = tNow();
+    const wait = (data.pollingIntervalMillis && !isNaN(data.pollingIntervalMillis)) ? Number(data.pollingIntervalMillis) : 1500;
+    pollTimer = setTimeout(pollLiveChat, Math.max(900, wait));
+  }catch(err){
+    showError('Polling error: ' + (err.message || err));
+    running = false; startBtn.disabled = false; stopBtn.disabled = true; setStatus('error');
+  }
+}
+
+// UI: start/stop
+startBtn.onclick = () => {
+  if(running) return;
+  running = true; startBtn.disabled = true; stopBtn.disabled = false; clearError(); pollLiveChat();
+};
+stopBtn.onclick = () => { running = false; startBtn.disabled = false; stopBtn.disabled = true; if(pollTimer) clearTimeout(pollTimer); setStatus('stopped'); };
+
+// connect button will call connectByLink
+connectBtn.addEventListener('click', async () => { await connectByLink(); });
+
+// rebuild on target change
+targetInput.addEventListener('input', () => rebuildLeaderboard());
+timeWindowInput.addEventListener('change', () => rebuildLeaderboard());
+topNInput.addEventListener('change', () => rebuildLeaderboard());
+
+// initial UI
+clearAll();
+stopBtn.disabled = true;
+setStatus('idle');
+</script>
+</body>
+</html>
